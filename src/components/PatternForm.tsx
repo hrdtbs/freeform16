@@ -1,6 +1,16 @@
 import { useEffect, useState } from "react";
 import type { PatternDef } from "../../shared/types";
 
+function emptyFields(pattern: PatternDef): Record<string, string> {
+  const obj: Record<string, string> = {};
+  for (const f of pattern.fields) obj[f.id] = "";
+  return obj;
+}
+
+function fieldValue(fields: Record<string, string>, id: string) {
+  return fields[id] ?? "";
+}
+
 export function PatternForm({
   pattern,
   round,
@@ -14,20 +24,18 @@ export function PatternForm({
   submitting: boolean;
   onSubmit: (fields: Record<string, string>) => void;
 }) {
-  const [fields, setFields] = useState<Record<string, string>>({});
+  const [fields, setFields] = useState(() => emptyFields(pattern));
   const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
-    const obj: Record<string, string> = {};
-    for (const f of pattern.fields) obj[f.id] = "";
-    setFields(obj);
+    setFields(emptyFields(pattern));
     setLocalError(null);
   }, [pattern]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     for (const f of pattern.fields) {
-      if (fields[f.id].trim().length < f.minChars) {
+      if (fieldValue(fields, f.id).trim().length < f.minChars) {
         setLocalError(
           `「${f.label}」をもう少し具体的に（${f.minChars}字以上）`,
         );
@@ -56,23 +64,26 @@ export function PatternForm({
         </div>
       </div>
 
-      {pattern.fields.map((field) => (
-        <label key={field.id} className="block space-y-2">
-          <div className="text-[0.82rem] text-[var(--lamp)]">{field.label}</div>
-          <textarea
-            value={fields[field.id]}
-            onChange={(e) =>
-              setFields((prev) => ({ ...prev, [field.id]: e.target.value }))
-            }
-            placeholder={field.placeholder}
-            rows={pattern.fields.length > 1 ? 4 : 7}
-            className="w-full resize-y rounded-sm border border-[var(--line)] bg-[rgba(8,14,24,0.45)] px-3 py-3 text-[0.95rem] leading-relaxed text-[var(--paper)] placeholder:text-[rgba(232,224,212,0.35)] focus:outline-none focus:border-[var(--lamp)]"
-          />
-          <div className="text-[0.72rem] text-[var(--muted)]">
-            {fields[field.id].trim().length}/{field.minChars}字〜
-          </div>
-        </label>
-      ))}
+      {pattern.fields.map((field) => {
+        const value = fieldValue(fields, field.id);
+        return (
+          <label key={field.id} className="block space-y-2">
+            <div className="text-[0.82rem] text-[var(--lamp)]">{field.label}</div>
+            <textarea
+              value={value}
+              onChange={(e) =>
+                setFields((prev) => ({ ...prev, [field.id]: e.target.value }))
+              }
+              placeholder={field.placeholder}
+              rows={pattern.fields.length > 1 ? 4 : 7}
+              className="w-full resize-y rounded-sm border border-[var(--line)] bg-[rgba(8,14,24,0.45)] px-3 py-3 text-[0.95rem] leading-relaxed text-[var(--paper)] placeholder:text-[rgba(232,224,212,0.35)] focus:outline-none focus:border-[var(--lamp)]"
+            />
+            <div className="text-[0.72rem] text-[var(--muted)]">
+              {value.trim().length}/{field.minChars}字〜
+            </div>
+          </label>
+        );
+      })}
 
       {localError && (
         <p className="text-[0.85rem] text-[var(--danger)]">{localError}</p>
