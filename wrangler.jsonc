@@ -18,11 +18,9 @@
     {
       "binding": "DB",
       "database_name": "freeform16",
-      "database_id": "00000000-0000-0000-0000-000000000001",
+      "database_id": "a848734e-21ce-4e87-be4b-4bbb82d15e6c",
       "migrations_dir": "migrations"
     }
   ],
-  "triggers": {
-    "crons": ["0 3 * * *"]
-  }
+  "workers_dev": true
 }
