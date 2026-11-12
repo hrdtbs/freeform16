@@ -1,4 +1,4 @@
-import type { AxisId, PatternDef } from "./types";
+import type { AxisId, PatternDef, PatternField } from "./types";
 
 export const MAX_ROUNDS = 4;
 export const CONF_AXIS = 0.7;
@@ -16,39 +16,93 @@ export const AXIS_META: Record<
   jp: { pos: "J", neg: "P", posLabel: "判断", negLabel: "知覚" },
 };
 
-export const PATTERNS: Record<string, PatternDef> = {
-  A: {
-    id: "A",
-    title: "最近の一場面",
-    hint: "ここ1〜2ヶ月の、具体的な一場面を書いてください。",
-    fields: [
-      {
-        id: "scene",
-        label: "場面",
-        placeholder:
-          "例: 金曜夕方の定例で、進捗が遅れていると指摘された。チーム3人とオンライン。",
-        minChars: 40,
-      },
-      {
-        id: "thought",
-        label: "考え",
-        placeholder: "その瞬間、頭に浮かんだことをそのまま。",
-        minChars: 30,
-      },
-      {
-        id: "action",
-        label: "行動",
-        placeholder: "実際に何をしたか／しなかったか。",
-        minChars: 30,
-      },
-      {
-        id: "after",
-        label: "あと味",
-        placeholder: "終わったあと、どう感じたか。",
-        minChars: 20,
-      },
-    ],
+const CORE_FIELDS: PatternField[] = [
+  {
+    id: "scene",
+    label: "場面",
+    placeholder: "いつ・どこで・誰と・何が起きたかを具体的に。",
+    minChars: 40,
   },
+  {
+    id: "thought",
+    label: "考え",
+    placeholder: "その瞬間、頭に浮かんだことをそのまま。",
+    minChars: 30,
+  },
+  {
+    id: "action",
+    label: "行動",
+    placeholder: "実際に何をしたか／しなかったか。",
+    minChars: 30,
+  },
+  {
+    id: "after",
+    label: "あと味",
+    placeholder: "終わったあと、どう感じたか。エネルギーは上がったか下がったか。",
+    minChars: 20,
+  },
+];
+
+function starter(
+  id: string,
+  title: string,
+  hint: string,
+  scenePlaceholder: string,
+): PatternDef {
+  return {
+    id,
+    title,
+    hint,
+    fields: CORE_FIELDS.map((f) =>
+      f.id === "scene" ? { ...f, placeholder: scenePlaceholder } : { ...f },
+    ),
+  };
+}
+
+/** First-round situation hooks. One is chosen at start. */
+export const STARTER_PATTERNS: PatternDef[] = [
+  starter(
+    "A1",
+    "意見が割れたとき",
+    "ここ1〜2ヶ月で、人と意見や方針がぶつかった場面を1つ。",
+    "例: 定例で進め方を巡って意見が分かれ、オンラインで3人と話していた。",
+  ),
+  starter(
+    "A2",
+    "予定が崩れたとき",
+    "ここ1〜2ヶ月で、予定・計画が大きく変わった／崩れた場面を1つ。",
+    "例: 金曜の提出予定が午後に延期され、残りのタスクをその場で組み直した。",
+  ),
+  starter(
+    "A3",
+    "大事な決断をしたとき",
+    "ここ1〜2ヶ月で、迷った末に決断した場面を1つ。",
+    "例: 転職／担当変更／大きな依頼を引き受けるか、週末に決めた。",
+  ),
+  starter(
+    "A4",
+    "初めての場に入ったとき",
+    "ここ1〜2ヶ月で、初対面や新しい環境に入った場面を1つ。",
+    "例: 他部署のキックオフに初めて参加し、知らない人が6人いた。",
+  ),
+  starter(
+    "A5",
+    "急ぎの依頼が来たとき",
+    "ここ1〜2ヶ月で、急な依頼や割り込み対応をした場面を1つ。",
+    "例: 夕方に急ぎの確認依頼が来て、予定を止めて対応した。",
+  ),
+  starter(
+    "A6",
+    "うまくいかなかったあと",
+    "ここ1〜2ヶ月で、失敗・ミス・期待外れのあと、どう動いたかを1つ。",
+    "例: 発表資料の指摘を受けたあと、その日のうちに修正方針を決めた。",
+  ),
+];
+
+export const STARTER_IDS = STARTER_PATTERNS.map((p) => p.id);
+
+export const PATTERNS: Record<string, PatternDef> = {
+  ...Object.fromEntries(STARTER_PATTERNS.map((p) => [p.id, p])),
   B: {
     id: "B",
     title: "人と関わったあと",
@@ -134,14 +188,23 @@ export const PATTERNS: Record<string, PatternDef> = {
   },
 };
 
+export function pickStarterPattern(): PatternDef {
+  const idx = Math.floor(Math.random() * STARTER_PATTERNS.length);
+  return STARTER_PATTERNS[idx] ?? STARTER_PATTERNS[0];
+}
+
+export function isStarterPattern(id: string) {
+  return STARTER_IDS.includes(id);
+}
+
 export function pickNextPattern(
-  round: number,
+  _round: number,
   usedPatterns: string[],
   weakestAxis: AxisId | null,
   enoughDetail: number,
 ): PatternDef {
-  if (round === 0) return PATTERNS.A;
-
+  // Starters are chosen only by /api/patterns/start.
+  // Follow-ups never re-pick another starter.
   if (enoughDetail < 0.6 && !usedPatterns.includes("G")) {
     return PATTERNS.G;
   }
@@ -161,7 +224,6 @@ export function pickNextPattern(
   if (!usedPatterns.includes("F")) return PATTERNS.F;
   if (!usedPatterns.includes("G")) return PATTERNS.G;
 
-  // Fallback: any unused pattern
   for (const id of ["B", "C", "D", "E", "F", "G"]) {
     if (!usedPatterns.includes(id)) return PATTERNS[id];
   }

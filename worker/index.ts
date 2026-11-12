@@ -4,6 +4,7 @@ import {
   MAX_ROUNDS,
   PATTERNS,
   pickNextPattern,
+  pickStarterPattern,
 } from "../shared/patterns";
 import {
   composeType,
@@ -42,7 +43,9 @@ app.get("/api/health", (c) =>
   c.json({ ok: true, service: "freeform16", mock: !c.env.GEMINI_API_KEY }),
 );
 
-app.get("/api/patterns/start", (c) => c.json({ pattern: PATTERNS.A, maxRounds: MAX_ROUNDS }));
+app.get("/api/patterns/start", (c) =>
+  c.json({ pattern: pickStarterPattern(), maxRounds: MAX_ROUNDS }),
+);
 
 function buildTranscript(answers: AnswerEntry[]) {
   return answers
